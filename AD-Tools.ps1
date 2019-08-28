@@ -1,4 +1,15 @@
-﻿
+﻿# Version 1.2
+# Scott P. Morton
+# Added User tools tab w/
+# User account lockout tool
+
+
+# Version 1.1
+# Written by Scott P. Morton
+# 8/27/2019
+
+Import-Module ActiveDirectory
+
 # Global Variables
 $date = Get-Date
 $creds = $null
@@ -21,11 +32,13 @@ Add-Type -AssemblyName System.drawing
 
 #. .\User-Object-Tool.ps1
 
-$ADTVersion = 1.1
+$ADTVersion = 2.1
 
 # form objects
 $Form1 = New-Object System.Windows.Forms.Form 
+$PanelForm1 = New-Object System.Windows.Forms.Panel 
 $Tabcontrol1 =  New-Object System.Windows.Forms.TabControl
+$userToolsTab = New-Object System.Windows.Forms.TabPage
 $userObjTab = New-Object System.Windows.Forms.TabPage
 $computerObjTab = New-Object System.Windows.Forms.TabPage
 $Server = New-Object System.Windows.Forms.TextBox
@@ -33,7 +46,12 @@ $Server_Label = New-Object System.Windows.Forms.Label
 $CredsButton = New-Object System.Windows.Forms.Button
 $CurrentCreds_Check = New-Object System.Windows.Forms.CheckBox
 
-# User Tab Objects
+# User Tools Tab
+$UserID_UsrsT = New-Object System.Windows.Forms.TextBox
+$UserId_Label_UsrsT = New-Object System.Windows.Forms.Label
+$LockoutButton_UsrsT = New-Object System.Windows.Forms.Button
+
+# User Objects Tab
 $numOfDays_DrpText_Usr= New-Object System.Windows.Forms.ComboBox
 $numOfDays_Label_Usr = New-Object System.Windows.Forms.Label
 $LastModifiedDate_Check_Usr = New-Object System.Windows.Forms.CheckBox
@@ -64,6 +82,18 @@ $System_Drawing_Size.Width = 725
 $System_Drawing_Size.Height = 750
 $Form1.ClientSize = $System_Drawing_Size
 
+$PanelForm1.Name = "TopPanel"
+$System_Drawing_Point = New-Object System.Drawing.Point
+$System_Drawing_Point.X = 75
+$System_Drawing_Point.Y = 5
+$PanelForm1.Location = $System_Drawing_Point
+$System_Drawing_Size = New-Object System.Drawing.Size
+$System_Drawing_Size.Width = 575
+$System_Drawing_Size.Height = 70
+$PanelForm1.ClientSize = $System_Drawing_Size
+$PanelForm1.Visible = $false
+$Form1.Controls.Add($PanelForm1)
+
 # tab control specs
 $Tabcontrol1.Name = "tabControl"
 $System_Drawing_Point = New-Object System.Drawing.Point
@@ -74,18 +104,29 @@ $System_Drawing_Size = New-Object System.Drawing.Size
 $System_Drawing_Size.Height = 600
 $System_Drawing_Size.Width = 575
 $Tabcontrol1.Size = $System_Drawing_Size
+$Tabcontrol1.SelectedIndexChanged = {
+    If ($Tabcontrol1.SelectedIndex -eq 0) {$PanelForm1.Enabled = $true}
+    If ($Tabcontrol1.SelectedIndex -eq 1) {$PanelForm1.Enabled = $false}
+    If ($Tabcontrol1.SelectedIndex -eq 2) {$PanelForm1.Visible = $false}
+}
 $Form1.Controls.Add($Tabcontrol1)
 
 
+$userToolsTab.AutoSize = $true
+$userToolsTab.TabIndex = 0
+$userToolsTab.Text = "User Tools"
+$userToolsTab.Enabled = $true
+$Tabcontrol1.Controls.Add($userToolsTab)
+
 $userObjTab.AutoSize = $true
-$userObjTab.TabIndex = 0
-$userObjTab.Text = "User Objects"
+$userObjTab.TabIndex = 1
+$userObjTab.Text = "User Object Aging"
 $userObjTab.Enabled = $true
 $Tabcontrol1.Controls.Add($userObjTab)
 
 $computerObjTab.AutoSize = $true
-$computerObjTab.TabIndex = 1
-$computerObjTab.Text = "Computer Objects"
+$computerObjTab.TabIndex = 2
+$computerObjTab.Text = "Computer Object Aging"
 $computerObjTab.Enabled = $false
 $Tabcontrol1.Controls.Add($computerObjTab)
 
@@ -127,9 +168,31 @@ $CurrentCreds_Check.Add_CheckStateChanged({
 })
 $Form1.Controls.Add($CurrentCreds_Check)
 
+Function UserToolsTab()
+{
 
+    $UserId_Label_UsrsT.Location = New-Object System.Drawing.Size(10,15) 
+    $UserId_Label_UsrsT.Size = New-Object System.Drawing.Size(170,20) 
+    $UserId_Label_UsrsT.Text = "User ID to query"
+    $userToolsTab.Controls.Add($UserId_Label_UsrsT) 
 
-Function UserTabObjects()
+    $UserID_UsrsT.Location = New-Object System.Drawing.Size(10,35)
+    $UserID_UsrsT.Size = New-Object System.Drawing.Size(120,25)
+    $UserID_UsrsT.Text = ""
+    $userToolsTab.Controls.Add($UserID_UsrsT)
+
+    $LockoutButton_UsrsT.Location = New-Object System.Drawing.Size(10,70)
+    $LockoutButton_UsrsT.Size = New-Object System.Drawing.Size(120,25)
+    $LockoutButton_UsrsT.Text = "Scan for Lockouts"
+    $LockoutButton_UsrsT.Add_Click(
+                            {
+                                $LockoutButton_UsrsT.enabled = $false
+                                Lockout_UsrTool
+                            })
+    $userToolsTab.Controls.Add($LockoutButton_UsrsT)
+}
+
+Function UserObjectsTab()
 {
 
     $numOfDays_DrpText_Usr.Location = New-Object System.Drawing.Size(10,15)
@@ -291,6 +354,43 @@ Function UserTabObjects()
     $ResetButton_Usr.Add_Click({Init_Sys_Usr})
     $userObjTab.Controls.Add($ResetButton_Usr)
 }
+
+
+###################################################################
+# Begin User Tools Functions
+
+Function Lockout_UsrTool()
+{
+    try
+    {
+	    [string] $ComputerName = ((Get-ADDomainController -Discover -Service PrimaryDC).HostName)
+	    #[string] $UserName = $(
+		#    Add-Type -AssemblyName Microsoft.VisualBasic
+		#    [Microsoft.VisualBasic.Interaction]::InputBox('Enter the username to check','Check lockouts', $env:USERNAME)
+	    #)
+		
+	    if (!$UserID_UsrsT.Text) { exit }
+
+	    $filter = "*[System[EventID=4740] and EventData[Data[@Name='TargetUserName']='$UserName']]"
+	    $Events = Get-WinEvent -ComputerName $ComputerName -Logname Security -FilterXPath $filter -ErrorAction Stop
+	    $Events | Select-Object TimeCreated,
+	    @{Name='User Name';Expression={$_.Properties[0].Value}},
+	    @{Name='Source Host';Expression={$_.Properties[1].Value}} | Out-GridView -Wait -Title "ADM Lockouts"
+    }
+	
+    catch
+    {
+	    if ($_.Exception -match "No events were found that match the specified selection criteria") {
+		    (new-object -ComObject wscript.shell).Popup("No recent lockouts were found",0,"None Found")
+	    } else {
+		    Throw $_.Exception
+	    }
+    }
+    $LockoutButton_UsrsT.enabled = $true
+}
+# End User Tools Functions
+###################################################################
+
 
 ###################################################################
 # Begin User Object Functions
@@ -530,8 +630,8 @@ Function Display_Selections_Usr()
 ###################################################################
 
 
-
-UserTabObjects
+UserToolsTab
+UserObjectsTab
 Init_Sys_Usr
 
 [void]$Form1.ShowDialog()
