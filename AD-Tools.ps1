@@ -174,6 +174,7 @@ Function ObjectAging()
     $Server.Location = New-Object System.Drawing.Size(5,35)
     $Server.Size = New-Object System.Drawing.Size(270,25)
     $Server.Text = ""
+    $Server.TabIndex = 0
     $objectAgingTab.Controls.Add($Server)
 
     $Server_Label.Location = New-Object System.Drawing.Size(5,16) 
@@ -671,8 +672,9 @@ Function Lockout_UsrTool()
 	    #)
 		
 	    if (!$UserID_UT.Text) { exit }
+        $user = $UserID_UT.Text
 
-	    $filter = "*[System[EventID=4740] and EventData[Data[@Name='TargetUserName']='$UserID_UT.Text']]"
+	    $filter = "*[System[EventID=4740] and EventData[Data[@Name='TargetUserName']='$user']]"
 
         if ($CurrentCreds_CheckUT.Checked)
         {
