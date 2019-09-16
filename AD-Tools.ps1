@@ -1,4 +1,9 @@
-﻿# Version 2,2
+﻿# Version 2.3
+# Scott P. Morton
+# 9/16/2019
+# added a cancel button for aged object scanning
+
+# Version 2.2
 # Scott P. Morton
 # 8/29/2019
 # Added the computer object tool functionality
@@ -76,6 +81,7 @@ $ImportCSVButton_Usr = New-Object System.Windows.Forms.Button
 $DisplayButton_Usr = New-Object System.Windows.Forms.Button
 $ExportCSVButton_Usr = New-Object System.Windows.Forms.Button
 $ResetButton_Usr = New-Object System.Windows.Forms.Button
+$CancelButton_Usr = New-Object System.Windows.Forms.Button
 
 # Computer Objects tab
 $ScanButton_Comp = New-Object System.Windows.Forms.Button
@@ -102,6 +108,7 @@ $Operation_Label_Comp = New-Object System.Windows.Forms.Label
 $disableObject_Comp = New-Object System.Windows.Forms.RadioButton
 $deleteObject_Comp = New-Object System.Windows.Forms.RadioButton
 $Validation_Label_Comp = New-Object System.Windows.Forms.Label
+$CancelButton_Comp = New-Object System.Windows.Forms.Button
 
 
 $InitialFormWindowState = New-Object System.Windows.Forms.FormWindowState
@@ -385,6 +392,8 @@ Function UserObjectsTab()
     $ScanButton_Usr.Text = "Scan"
     $ScanButton_Usr.Add_Click(
                             {
+                                $script:Cancel_Usr = $false
+                                $CancelButton_Usr.Enabled = $true
                                 Scan_Usr
  
                                 $script:array_Usr = @()
@@ -406,6 +415,27 @@ Function UserObjectsTab()
                             })
 
     $userObjTab.Controls.Add($ScanButton_Usr)
+
+    $CancelButton_Usr.Location = New-Object System.Drawing.Size(95,130)
+    $CancelButton_Usr.Size = New-Object System.Drawing.Size(75,25)
+    $CancelButton_Usr.Text = "Cancel"
+    $CancelButton_Usr.Add_Click(
+                            {
+                                
+ 
+                                $script:Cancel_Usr = $true
+                                
+                                $CancelButton_Usr.Enabled = $false
+                                $ExportCSVButton_Usr.Enabled = $true
+
+
+
+                                [System.Windows.Forms.MessageBox]::Show("Scan completed", "Status")
+
+                            })
+
+    $userObjTab.Controls.Add($CancelButton_Usr)
+
 
     $ModifyButton_Usr.Location = New-Object System.Drawing.Size(10,375)
     $ModifyButton_Usr.Size = New-Object System.Drawing.Size(140,25)
@@ -450,6 +480,8 @@ Function CompObjectsTab()
     $ScanButton_Comp.Enabled = $false
     $ScanButton_Comp.Add_Click(
                             {
+                                $script:Cancel_Comp = $false
+                                $CancelButton_Comp.Enabled = $true
                                 Scan_Comp
  
                                 if ($LastModifiedDate_Check_Comp.Checked)
@@ -474,6 +506,26 @@ Function CompObjectsTab()
                             })
 
     $computerObjTab.Controls.Add($ScanButton_Comp)
+
+    $CancelButton_Comp.Location = New-Object System.Drawing.Size(95,295)
+    $CancelButton_Comp.Size = New-Object System.Drawing.Size(75,25)
+    $CancelButton_Comp.Text = "Cancel"
+    $CancelButton_Comp.Add_Click(
+                            {
+                                
+ 
+                                $script:Cancel_Comp = $true
+                                
+                                $CancelButton_Comp.Enabled = $false
+                                $ExportCSVButton_Usr.Enabled = $true
+
+
+
+                                [System.Windows.Forms.MessageBox]::Show("Scan completed", "Status")
+
+                            })
+
+    $computerObjTab.Controls.Add($CancelButton_Comp)
 
     $ModifyButton_Comp.Location = New-Object System.Drawing.Size(10,445)
     $ModifyButton_Comp.Size = New-Object System.Drawing.Size(140,25)
@@ -716,6 +768,7 @@ Function Init_Sys_Usr()
     $listMatching_Usr = @{}
     $failures_Usr = @{}
     $ScanButton_Usr.Enabled = $false
+    $CancelButton_Usr.Enabled = $false
     $ModifyButton_Usr.Enabled = $false
     $ExportCSVButton_Usr.Enabled = $false
     $DisplayButton_Usr.Enabled = $false
@@ -741,109 +794,120 @@ Function Scan_Usr()
     }
 
     Write-Host "Processing"
+    try{
 
-    if($CurrentCreds_Check.Checked)
-    {
-        Get-ADUser -Filter * -Server $Server.Text -Properties Name,CanonicalName,Description,Enabled,LastLogonDate,lastLogonTimeStamp,Modified,modifyTimeStamp,PasswordLastSet,pwdLastSet | 
-        ForEach-Object {
-
-            if ($listMatching_Usr.Count%10 -eq 0){
-                    #Write-Host "." -NoNewline
-                }
-
-            if ($Disabled_Check_Usr.Checked)
-            {
-                    switch ($ModifiedDate_DrpText_Usr.SelectedIndex) 
-                { 
-                    0 {$LastModifiedDate = 180} 
-                    1 {$LastModifiedDate = 90} 
-                    2 {$LastModifiedDate = 60} 
-                    3 {$LastModifiedDate = 45} 
-                    4 {$LastModifiedDate = 30} 
-                    5 {$LastModifiedDate = 2555} 
-                    default {$LastModifiedDate = 180}
-                }
-                if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -AND $_.Enabled -eq $false)
-                {
-                    $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
-                    $listMatching_Usr.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
-                }
-            }
-
-            else
-            {
-                if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -AND $_.Enabled -eq $true)
-                {
-                    if ($_.pwdLastSet -ne $null)
-                    {
-                        $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
-                    }
-                    else
-                    {
-                        $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value $null -Force
-                    }
-
-                    $listMatching_Usr.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
-                }
-            }
-            # uncomment to debug
-            #if ($listMatching_Usr.Count -ge 50) { break } 
-            $Matches_Usr.Text = $listMatching_Usr.Count.ToString()
-            [System.Windows.Forms.Application]::DoEvents()
-        }
-    }
-    else
-    {
-        Get-ADUser -Filter * -Credential $creds -Server $Server.Text -Properties Name,CanonicalName,Description,Enabled,LastLogonDate,lastLogonTimeStamp,Modified,modifyTimeStamp,PasswordLastSet,pwdLastSet | 
         
-        ForEach-Object {
+        if($CurrentCreds_Check.Checked)
+        {
+            Get-ADUser -Filter * -Server $Server.Text -Properties Name,CanonicalName,Description,Enabled,LastLogonDate,lastLogonTimeStamp,Modified,modifyTimeStamp,PasswordLastSet,pwdLastSet | 
+            ForEach-Object {
 
-            if ($listMatching_Usr.Count%10 -eq 0){
-                Write-Host "." -NoNewline
-                }
-
-            if ($Disabled_Check_Usr.Checked)
-            {
-                    switch ($ModifiedDate_DrpText_Usr.SelectedIndex) 
-                { 
-                    0 {$LastModifiedDate = 180} 
-                    1 {$LastModifiedDate = 90} 
-                    2 {$LastModifiedDate = 60} 
-                    3 {$LastModifiedDate = 45} 
-                    4 {$LastModifiedDate = 30} 
-                    5 {$LastModifiedDate = 2555} 
-                    default {$LastModifiedDate = 180}
-                }
-                if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -AND $_.Enabled -eq $false)
-                {
-                    $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
-                    $listMatching_Usr.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
-                }
-            }
-
-            else
-            {
-                if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -AND $_.Enabled -eq $true)
-                {
-                    if ($_.pwdLastSet -ne $null)
-                    {
-                        $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
-                    }
-                    else
-                    {
-                        $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value $null -Force
+                if ($listMatching_Usr.Count%10 -eq 0){
+                        #Write-Host "." -NoNewline
                     }
 
-                    $listMatching_Usr.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
+                if ($Disabled_Check_Usr.Checked)
+                {
+                        switch ($ModifiedDate_DrpText_Usr.SelectedIndex) 
+                    { 
+                        0 {$LastModifiedDate = 180} 
+                        1 {$LastModifiedDate = 90} 
+                        2 {$LastModifiedDate = 60} 
+                        3 {$LastModifiedDate = 45} 
+                        4 {$LastModifiedDate = 30} 
+                        5 {$LastModifiedDate = 2555} 
+                        default {$LastModifiedDate = 180}
+                    }
+                    if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -AND $_.Enabled -eq $false)
+                    {
+                        $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
+                        $listMatching_Usr.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
+                    }
                 }
+
+                else
+                {
+                    if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -AND $_.Enabled -eq $true)
+                    {
+                        if ($_.pwdLastSet -ne $null)
+                        {
+                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
+                        }
+                        else
+                        {
+                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value $null -Force
+                        }
+
+                        $listMatching_Usr.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
+                    }
+                }
+                # uncomment to debug
+                #if ($listMatching_Usr.Count -ge 50) { break } 
+                $Matches_Usr.Text = $listMatching_Usr.Count.ToString()
+                if($script:Cancel_Usr -eq $true){
+                    break
+                }
+                [System.Windows.Forms.Application]::DoEvents()
             }
-            # uncomment to debug
-            #if ($listMatching_Usr.Count -ge 50) { break } 
-            $Matches_Usr.Text = $listMatching_Usr.Count.ToString()
-            [System.Windows.Forms.Application]::DoEvents()
+        }
+        else
+        {
+            Get-ADUser -Filter * -Credential $creds -Server $Server.Text -Properties Name,CanonicalName,Description,Enabled,LastLogonDate,lastLogonTimeStamp,Modified,modifyTimeStamp,PasswordLastSet,pwdLastSet | 
+            
+            ForEach-Object {
+
+                if ($listMatching_Usr.Count%10 -eq 0){
+                    Write-Host "." -NoNewline
+                    }
+
+                if ($Disabled_Check_Usr.Checked)
+                {
+                        switch ($ModifiedDate_DrpText_Usr.SelectedIndex) 
+                    { 
+                        0 {$LastModifiedDate = 180} 
+                        1 {$LastModifiedDate = 90} 
+                        2 {$LastModifiedDate = 60} 
+                        3 {$LastModifiedDate = 45} 
+                        4 {$LastModifiedDate = 30} 
+                        5 {$LastModifiedDate = 2555} 
+                        default {$LastModifiedDate = 180}
+                    }
+                    if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -AND $_.Enabled -eq $false)
+                    {
+                        $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
+                        $listMatching_Usr.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
+                    }
+                }
+
+                else
+                {
+                    if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -AND $_.Enabled -eq $true)
+                    {
+                        if ($_.pwdLastSet -ne $null)
+                        {
+                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
+                        }
+                        else
+                        {
+                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value $null -Force
+                        }
+
+                        $listMatching_Usr.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
+                    }
+                }
+                # uncomment to debug
+                #if ($listMatching_Usr.Count -ge 50) { break } 
+                $Matches_Usr.Text = $listMatching_Usr.Count.ToString()
+                if($script:Cancel_Usr -eq $true){
+                    break
+                }
+                [System.Windows.Forms.Application]::DoEvents()
+            }
         }
     }
-    
+    Catch{
+      Write-Host("Scan broke out of processing, continuing back to main program")  
+    }
 }
 
 Function Perform_Operation_Usr()
@@ -941,7 +1005,8 @@ function Init_Sys_Comp()
 {
 
     $script:date = Get-Date
-
+    $script:Cancel_Comp = $false
+    $CancelButton_Comp.Enabled = $false
     $script:array_Comp = @{}            # used for Selected and displayed data
     $script:listMatching_Comp = @{}
     $script:listOS_Comp = @{}
@@ -970,98 +1035,111 @@ function Scan_Comp()
         default {$daysOld = 180}
     }
 
-    if($CurrentCreds_Check.Checked)
-    {
-        Get-ADComputer -filter * -Server $Server.Text -Properties Name,CanonicalName,Description,Enabled,IPv4Address,LastLogonDate,lastLogonTimeStamp,Modified,modifyTimeStamp,OperatingSystem,PasswordLastSet,pwdLastSet |
-             ForEach-Object {
+    try{
 
-                if ($Disabled_Check_Comp.Checked)
-                {
-                    switch ($ModifiedDate_DrpText_Comp.SelectedIndex) 
-                    { 
-                        0 {$LastModifiedDate = 180} 
-                        1 {$LastModifiedDate = 90} 
-                        2 {$LastModifiedDate = 60} 
-                        3 {$LastModifiedDate = 45} 
-                        4 {$LastModifiedDate = 30} 
-                        default {$LastModifiedDate = 180}
-                    }
+        if($CurrentCreds_Check.Checked)
+        {
+            Get-ADComputer -filter * -Server $Server.Text -Properties Name,CanonicalName,Description,Enabled,IPv4Address,LastLogonDate,lastLogonTimeStamp,Modified,modifyTimeStamp,OperatingSystem,PasswordLastSet,pwdLastSet |
+                ForEach-Object {
 
-                    if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -and $_.Enabled -eq $false)
+                    if ($Disabled_Check_Comp.Checked)
                     {
-                        $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
-                        $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
-                    }
-                }
-
-                else
-                {
-                    if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -and $_.Enabled -eq $true)
-                    {
-                        if ($_.pwdLastSet -ne $null)
-                        {
-                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
-                        }
-                        else
-                        {
-                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value $null -Force
+                        switch ($ModifiedDate_DrpText_Comp.SelectedIndex) 
+                        { 
+                            0 {$LastModifiedDate = 180} 
+                            1 {$LastModifiedDate = 90} 
+                            2 {$LastModifiedDate = 60} 
+                            3 {$LastModifiedDate = 45} 
+                            4 {$LastModifiedDate = 30} 
+                            default {$LastModifiedDate = 180}
                         }
 
-                        $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
+                        if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -and $_.Enabled -eq $false)
+                        {
+                            $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
+                            $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
+                        }
                     }
+
+                    else
+                    {
+                        if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -and $_.Enabled -eq $true)
+                        {
+                            if ($_.pwdLastSet -ne $null)
+                            {
+                                $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
+                            }
+                            else
+                            {
+                                $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value $null -Force
+                            }
+
+                            $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
+                        }
+                    }
+                # uncomment to debug
+                #if ($listMatching_Comp.Count -ge 150) { break } 
+                $Matches_Comp.Text = $listMatching_Comp.Count.ToString()
+                if($script:Cancel_Comp -eq $true){
+                    break
                 }
-            # uncomment to debug
-            #if ($listMatching_Comp.Count -ge 150) { break } 
-            $Matches_Comp.Text = $listMatching_Comp.Count.ToString()
-            [System.Windows.Forms.Application]::DoEvents()
+                [System.Windows.Forms.Application]::DoEvents()
+            }
+        }
+        else
+        {
+            Get-ADComputer -filter * -Credential $creds -Server $Server.Text -Properties Name,CanonicalName,Description,Enabled,IPv4Address,LastLogonDate,lastLogonTimeStamp,Modified,modifyTimeStamp,OperatingSystem,PasswordLastSet,pwdLastSet |
+                ForEach-Object {
+
+                    if ($Disabled_Check_Comp.Checked)
+                    {
+                        switch ($ModifiedDate_DrpText_Comp.SelectedIndex) 
+                        { 
+                            0 {$LastModifiedDate = 180} 
+                            1 {$LastModifiedDate = 90} 
+                            2 {$LastModifiedDate = 60} 
+                            3 {$LastModifiedDate = 45} 
+                            4 {$LastModifiedDate = 30} 
+                            default {$LastModifiedDate = 180}
+                        }
+
+                        if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -and $_.Enabled -eq $false)
+                        {
+                            $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
+                            $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
+                        }
+                    }
+
+                    else
+                    {
+                        if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -and $_.Enabled -eq $true)
+                        {
+                            if ($_.pwdLastSet -ne $null)
+                            {
+                                $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
+                            }
+                            else
+                            {
+                                $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value $null -Force
+                            }
+
+                            $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
+                        }
+                    }
+                # uncomment to debug
+                #if ($listMatching_Comp.Count -ge 150) { break } 
+                $Matches_Comp.Text = $listMatching_Comp.Count.ToString()
+                if($script:Cancel_Comp -eq $true){
+                    break
+                }
+                [System.Windows.Forms.Application]::DoEvents()
+            }
         }
     }
-    else
-    {
-        Get-ADComputer -filter * -Credential $creds -Server $Server.Text -Properties Name,CanonicalName,Description,Enabled,IPv4Address,LastLogonDate,lastLogonTimeStamp,Modified,modifyTimeStamp,OperatingSystem,PasswordLastSet,pwdLastSet |
-             ForEach-Object {
-
-                if ($Disabled_Check_Comp.Checked)
-                {
-                    switch ($ModifiedDate_DrpText_Comp.SelectedIndex) 
-                    { 
-                        0 {$LastModifiedDate = 180} 
-                        1 {$LastModifiedDate = 90} 
-                        2 {$LastModifiedDate = 60} 
-                        3 {$LastModifiedDate = 45} 
-                        4 {$LastModifiedDate = 30} 
-                        default {$LastModifiedDate = 180}
-                    }
-
-                    if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -and $_.Enabled -eq $false)
-                    {
-                        $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
-                        $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
-                    }
-                }
-
-                else
-                {
-                    if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -and $_.Enabled -eq $true)
-                    {
-                        if ($_.pwdLastSet -ne $null)
-                        {
-                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
-                        }
-                        else
-                        {
-                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value $null -Force
-                        }
-
-                        $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
-                    }
-                }
-            # uncomment to debug
-            #if ($listMatching_Comp.Count -ge 150) { break } 
-            $Matches_Comp.Text = $listMatching_Comp.Count.ToString()
-            [System.Windows.Forms.Application]::DoEvents()
-        }
-    }
+    Catch{
+        Write-Host("Scan broke out of processing, continuing back to main program")  
+      }
+  
 }
 
 function Perform_Operation_Comp()
