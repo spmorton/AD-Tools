@@ -1,4 +1,10 @@
-﻿# Version 2.3
+﻿# Version 2.4
+# Scott P. Morton
+# 9/17/2019
+# Added a cancel button for operations under computer object tool
+# Need to add one for user object tool as well
+
+# Version 2.3
 # Scott P. Morton
 # 9/16/2019
 # added a cancel button for aged object scanning
@@ -40,7 +46,7 @@ Add-Type -AssemblyName System.drawing
 
 #. .\User-Object-Tool.ps1
 
-$ADTVersion = 2.1
+$ADTVersion = 2.4
 
 # form objects
 $Form1 = New-Object System.Windows.Forms.Form 
@@ -108,12 +114,14 @@ $Operation_Label_Comp = New-Object System.Windows.Forms.Label
 $disableObject_Comp = New-Object System.Windows.Forms.RadioButton
 $deleteObject_Comp = New-Object System.Windows.Forms.RadioButton
 $Validation_Label_Comp = New-Object System.Windows.Forms.Label
-$CancelButton_Comp = New-Object System.Windows.Forms.Button
+$CancelScanButton_Comp = New-Object System.Windows.Forms.Button
+$CancelOpsButton_Comp = New-Object System.Windows.Forms.Button
 
 
 $InitialFormWindowState = New-Object System.Windows.Forms.FormWindowState
 
 # form specs
+$buttonSize = New-Object System.Drawing.Size(105,25)
 $Form1.Text = "AD Tools - " + $ADTVersion
 $Form1.Name = "adtools"
 #$Form1.AutoScaleMode = 1
@@ -419,23 +427,11 @@ Function UserObjectsTab()
     $CancelButton_Usr.Location = New-Object System.Drawing.Size(95,130)
     $CancelButton_Usr.Size = New-Object System.Drawing.Size(75,25)
     $CancelButton_Usr.Text = "Cancel"
-    $CancelButton_Usr.Add_Click(
-                            {
-                                
- 
-                                $script:Cancel_Usr = $true
-                                
-                                $CancelButton_Usr.Enabled = $false
-                                $ExportCSVButton_Usr.Enabled = $true
-
-
-
-                                [System.Windows.Forms.MessageBox]::Show("Scan completed", "Status")
-
-                            })
-
+    $CancelButton_Usr.Add_Click({
+        $script:Cancel_Usr = $true
+        $CancelButton_Usr.Enabled = $false
+    })
     $userObjTab.Controls.Add($CancelButton_Usr)
-
 
     $ModifyButton_Usr.Location = New-Object System.Drawing.Size(10,375)
     $ModifyButton_Usr.Size = New-Object System.Drawing.Size(140,25)
@@ -475,13 +471,13 @@ Function UserObjectsTab()
 Function CompObjectsTab()
 {
     $ScanButton_Comp.Location = New-Object System.Drawing.Size(10,295)
-    $ScanButton_Comp.Size = New-Object System.Drawing.Size(75,25)
+    $ScanButton_Comp.Size = $buttonSize
     $ScanButton_Comp.Text = "Scan"
     $ScanButton_Comp.Enabled = $false
     $ScanButton_Comp.Add_Click(
                             {
                                 $script:Cancel_Comp = $false
-                                $CancelButton_Comp.Enabled = $true
+                                $CancelScanButton_Comp.Enabled = $true
                                 Scan_Comp
  
                                 if ($LastModifiedDate_Check_Comp.Checked)
@@ -507,42 +503,47 @@ Function CompObjectsTab()
 
     $computerObjTab.Controls.Add($ScanButton_Comp)
 
-    $CancelButton_Comp.Location = New-Object System.Drawing.Size(95,295)
-    $CancelButton_Comp.Size = New-Object System.Drawing.Size(75,25)
-    $CancelButton_Comp.Text = "Cancel"
-    $CancelButton_Comp.Add_Click(
+    $CancelScanButton_Comp.Location = New-Object System.Drawing.Size(125,295)
+    $CancelScanButton_Comp.Size = $buttonSize
+    $CancelScanButton_Comp.Text = "Cancel"
+    $CancelScanButton_Comp.Add_Click(
                             {
-                                
- 
                                 $script:Cancel_Comp = $true
-                                
-                                $CancelButton_Comp.Enabled = $false
-                                $ExportCSVButton_Usr.Enabled = $true
-
-
-
-                                [System.Windows.Forms.MessageBox]::Show("Scan completed", "Status")
-
+                                $CancelScanButton_Comp.Enabled = $false
                             })
 
-    $computerObjTab.Controls.Add($CancelButton_Comp)
+    $computerObjTab.Controls.Add($CancelScanButton_Comp)
 
     $ModifyButton_Comp.Location = New-Object System.Drawing.Size(10,445)
-    $ModifyButton_Comp.Size = New-Object System.Drawing.Size(140,25)
+    $ModifyButton_Comp.Size = $buttonSize
     $ModifyButton_Comp.Text = "Perform Operation"
     $ModifyButton_Comp.Enabled = $false
-    $ModifyButton_Comp.Add_Click({Perform_Operation_Comp})
+    $ModifyButton_Comp.Add_Click({
+        $script:Cancel_Comp = $false
+        $CancelOpsButton_Comp.Enabled = $true
+        Perform_Operation_Comp
+    })
     $computerObjTab.Controls.Add($ModifyButton_Comp)
 
-    $ImportCSVButton_Comp.Location = New-Object System.Drawing.Size(155,445)
-    $ImportCSVButton_Comp.Size = New-Object System.Drawing.Size(140,25)
+    $CancelOpsButton_Comp.Location = New-Object System.Drawing.Size(125,445)
+    $CancelOpsButton_Comp.Size = $buttonSize
+    $CancelOpsButton_Comp.Text = "Cancel Ops"
+    $CancelOpsButton_Comp.Enabled = $false
+    $CancelOpsButton_Comp.Add_Click({
+            $script:Cancel_Comp = $true
+            $CancelOpsButton_Comp.Enabled = $false
+    })
+    $computerObjTab.Controls.Add($CancelOpsButton_Comp)
+
+    $ImportCSVButton_Comp.Location = New-Object System.Drawing.Size(240,445)
+    $ImportCSVButton_Comp.Size = $buttonSize
     $ImportCSVButton_Comp.Text = "Import CSV"
     $ImportCSVButton_Comp.Add_Click({Import_CSV_Comp;$ScanButton_Comp.Enabled = $false;$DisplayButton_Comp.Enabled = $false;$ExportCSVButton_Comp.Enabled = $false;$ModifyButton_Comp.Enabled = $true})
     $computerObjTab.Controls.Add($ImportCSVButton_Comp)
 
-    $DisplayButton_Comp.Location = New-Object System.Drawing.Size(340,445)
-    $DisplayButton_Comp.Size = New-Object System.Drawing.Size(140,25)
-    $DisplayButton_Comp.Text = "Select and Display"
+    $DisplayButton_Comp.Location = New-Object System.Drawing.Size(355,445)
+    $DisplayButton_Comp.Size = $buttonSize
+    $DisplayButton_Comp.Text = "Select / Display"
     $DisplayButton_Comp.Add_Click(
                         {
                             Display_Selections_Comp
@@ -553,15 +554,16 @@ Function CompObjectsTab()
     $DisplayButton_Comp.Enabled = $false
     $computerObjTab.Controls.Add($DisplayButton_Comp)
 
-    $ExportCSVButton_Comp.Location = New-Object System.Drawing.Size(490,445)
-    $ExportCSVButton_Comp.Size = New-Object System.Drawing.Size(140,25)
-    $ExportCSVButton_Comp.Text = "Export All to CSV"
+    
+    $ExportCSVButton_Comp.Location = New-Object System.Drawing.Size(470,445)
+    $ExportCSVButton_Comp.Size = $buttonSize
+    $ExportCSVButton_Comp.Text = "Export All"
     $ExportCSVButton_Comp.Enabled = $false
     $ExportCSVButton_Comp.Add_Click({Export_CSV_Comp})
     $computerObjTab.Controls.Add($ExportCSVButton_Comp)
 
-    $ResetButton_Comp.Location = New-Object System.Drawing.Size(640,445)
-    $ResetButton_Comp.Size = New-Object System.Drawing.Size(140,25)
+    $ResetButton_Comp.Location = New-Object System.Drawing.Size(675,445)
+    $ResetButton_Comp.Size = $buttonSize
     $ResetButton_Comp.Text = "Reset"
     $ResetButton_Comp.Enabled = $true
     $ResetButton_Comp.Add_Click({Init_Sys_Comp})
@@ -660,10 +662,8 @@ Function CompObjectsTab()
     $computerObjTab.Controls.Add($Disabled_Check_Comp)
 
     $OSlist_Comp.Location = New-Object System.Drawing.Size(340,25)
-    $OSlist_Comp.Size = New-Object System.Drawing.Size(20,20)
+    $OSlist_Comp.Size = New-Object System.Drawing.Size(440,415)
     $OSlist_Comp.SelectionMode = [System.Windows.Forms.SelectionMode]::MultiExtended
-    $OSlist_Comp.Height = 415
-    $OSlist_Comp.Width = 440
     $computerObjTab.Controls.Add($OSlist_Comp) 
 
     $OSlist_Comp_Label.Location = New-Object System.Drawing.Size(340,6) 
@@ -1003,10 +1003,11 @@ Function Display_Selections_Usr()
 # Begin Computer Object Functions
 function Init_Sys_Comp()
 {
-
+    $script:Cancel_Comp = $false
+    $CancelOpsButton_Comp.Enabled = $flase
     $script:date = Get-Date
     $script:Cancel_Comp = $false
-    $CancelButton_Comp.Enabled = $false
+    $CancelScanButton_Comp.Enabled = $false
     $script:array_Comp = @{}            # used for Selected and displayed data
     $script:listMatching_Comp = @{}
     $script:listOS_Comp = @{}
@@ -1145,33 +1146,41 @@ function Scan_Comp()
 function Perform_Operation_Comp()
 {
 
-    foreach ($child in $array_Comp.Values ) 
-    {
-        if ($disableObject_Comp.Checked)
+    try{
+        foreach ($child in $array_Comp.Values ) 
         {
-            try
+            if ($disableObject_Comp.Checked)
             {
-                Write-Host "Disabling - "$child.SamAccountName
-                set-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -enabled $False
-            }
+                try
+                {
+                    Write-Host "Disabling - "$child.SamAccountName
+                    set-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -enabled $False
+                }
 
-            catch
-            {
-                $failures_Comp.Add($child.SamAccountName,$child)
-            }
+                catch
+                {
+                    $failures_Comp.Add($child.SamAccountName,$child)
+                }
 
-        }
-        elseif ($deleteObject_Comp.Checked)
-        {
-            try
-            {
-                Remove-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -Confirm:$False
             }
-            catch
+            elseif ($deleteObject_Comp.Checked)
             {
-                $failures_Comp.Add($child.SamAccountName,$child)
+                try
+                {
+                    Remove-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -Confirm:$False
+                }
+                catch
+                {
+                    $failures_Comp.Add($child.SamAccountName,$child)
+                }
+            }
+            if($script:Cancel_Comp -eq $true){
+                break
             }
         }
+    }
+    catch{
+        Write-Host('Operation broke out of processing, continuing back to main program"')
     }
 
     if ($failures_Comp.Count)
