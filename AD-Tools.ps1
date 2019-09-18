@@ -1,4 +1,15 @@
-﻿# Version 2.4
+﻿# Version 2.6
+# Scott P. Morton
+# 9/18/2019
+# Removed the addition PWD Age from returned data in computer object tool
+# Need to sync User object tool methods
+
+# Version 2.5
+# Scott P. Morton
+# 9/17/2019
+# Corrected a display issue with importing CSV files for computer objects
+
+# Version 2.4
 # Scott P. Morton
 # 9/17/2019
 # Added a cancel button for operations under computer object tool
@@ -29,7 +40,7 @@
 Import-Module ActiveDirectory
 
 # Global Variables
-$date = Get-Date
+$script:date = Get-Date
 $creds = $null
 
 # User Tab global vars
@@ -46,7 +57,7 @@ Add-Type -AssemblyName System.drawing
 
 #. .\User-Object-Tool.ps1
 
-$ADTVersion = 2.4
+$ADTVersion = 2.6
 
 # form objects
 $Form1 = New-Object System.Windows.Forms.Form 
@@ -478,6 +489,8 @@ Function CompObjectsTab()
                             {
                                 $script:Cancel_Comp = $false
                                 $CancelScanButton_Comp.Enabled = $true
+                                $ScanButton_Comp.Enabled = $false
+                                $ImportCSVButton_Comp.Enabled = $false
                                 Scan_Comp
  
                                 if ($LastModifiedDate_Check_Comp.Checked)
@@ -510,6 +523,7 @@ Function CompObjectsTab()
                             {
                                 $script:Cancel_Comp = $true
                                 $CancelScanButton_Comp.Enabled = $false
+                                $ScanButton_Comp.Enabled = $true
                             })
 
     $computerObjTab.Controls.Add($CancelScanButton_Comp)
@@ -521,6 +535,7 @@ Function CompObjectsTab()
     $ModifyButton_Comp.Add_Click({
         $script:Cancel_Comp = $false
         $CancelOpsButton_Comp.Enabled = $true
+        $ImportCSVButton_Comp.Enable = $false
         Perform_Operation_Comp
     })
     $computerObjTab.Controls.Add($ModifyButton_Comp)
@@ -538,7 +553,14 @@ Function CompObjectsTab()
     $ImportCSVButton_Comp.Location = New-Object System.Drawing.Size(240,445)
     $ImportCSVButton_Comp.Size = $buttonSize
     $ImportCSVButton_Comp.Text = "Import CSV"
-    $ImportCSVButton_Comp.Add_Click({Import_CSV_Comp;$ScanButton_Comp.Enabled = $false;$DisplayButton_Comp.Enabled = $false;$ExportCSVButton_Comp.Enabled = $false;$ModifyButton_Comp.Enabled = $true})
+    $ImportCSVButton_Comp.Add_Click({
+        Import_CSV_Comp;
+        LoadOSs_Comp
+        #$Matches_Comp.Text = $listMatching_Comp.Count.ToString()
+        $DisplayButton_Comp.Enabled = $true
+        $ScanButton_Comp.Enabled = $false;
+        $ModifyButton_Comp.Enabled = $true
+    })
     $computerObjTab.Controls.Add($ImportCSVButton_Comp)
 
     $DisplayButton_Comp.Location = New-Object System.Drawing.Size(355,445)
@@ -549,7 +571,7 @@ Function CompObjectsTab()
                             Display_Selections_Comp
                             $ModifyButton_Comp.Enabled = $true
                             $script:exportall_Comp = $false
-                            $ExportCSVButton_Comp.Text = "Export Selected to CSV"
+                            $ExportCSVButton_Comp.Text = "Export Selected"
                         })
     $DisplayButton_Comp.Enabled = $false
     $computerObjTab.Controls.Add($DisplayButton_Comp)
@@ -818,20 +840,20 @@ Function Scan_Usr()
                         5 {$LastModifiedDate = 2555} 
                         default {$LastModifiedDate = 180}
                     }
-                    if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -AND $_.Enabled -eq $false)
+                    if (($script:date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -AND $_.Enabled -eq $false)
                     {
-                        $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
+                        $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($script:date - $_.modifyTimeStamp).Days -Force
                         $listMatching_Usr.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
                     }
                 }
 
                 else
                 {
-                    if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -AND $_.Enabled -eq $true)
+                    if (($script:date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -AND $_.Enabled -eq $true)
                     {
                         if ($_.pwdLastSet -ne $null)
                         {
-                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
+                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($script:date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
                         }
                         else
                         {
@@ -872,20 +894,20 @@ Function Scan_Usr()
                         5 {$LastModifiedDate = 2555} 
                         default {$LastModifiedDate = 180}
                     }
-                    if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -AND $_.Enabled -eq $false)
+                    if (($script:date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -AND $_.Enabled -eq $false)
                     {
-                        $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
+                        $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($script:date - $_.modifyTimeStamp).Days -Force
                         $listMatching_Usr.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
                     }
                 }
 
                 else
                 {
-                    if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -AND $_.Enabled -eq $true)
+                    if (($script:date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -AND $_.Enabled -eq $true)
                     {
                         if ($_.pwdLastSet -ne $null)
                         {
-                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
+                            $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($script:date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
                         }
                         else
                         {
@@ -906,7 +928,7 @@ Function Scan_Usr()
         }
     }
     Catch{
-      Write-Host("Scan broke out of processing, continuing back to main program")  
+      Write-Host "Scan broke out of processing, continuing back to main program" -ForegroundColor Red -BackgroundColor Gray
     }
 }
 
@@ -1024,8 +1046,6 @@ function Init_Sys_Comp()
 
 function Scan_Comp()
 {
-    $ScanButton_Comp.Enabled = $false
-
     switch ($numOfDays_DrpText_Comp.SelectedIndex) 
     { 
         0 {$daysOld = 180} 
@@ -1038,6 +1058,7 @@ function Scan_Comp()
 
     try{
 
+        
         if($CurrentCreds_Check.Checked)
         {
             Get-ADComputer -filter * -Server $Server.Text -Properties Name,CanonicalName,Description,Enabled,IPv4Address,LastLogonDate,lastLogonTimeStamp,Modified,modifyTimeStamp,OperatingSystem,PasswordLastSet,pwdLastSet |
@@ -1055,26 +1076,17 @@ function Scan_Comp()
                             default {$LastModifiedDate = 180}
                         }
 
-                        if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -and $_.Enabled -eq $false)
+                        if (($script:date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -and $_.Enabled -eq $false)
                         {
-                            $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
+                            $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($script:date - $_.modifyTimeStamp).Days -Force
                             $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
                         }
                     }
 
                     else
                     {
-                        if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -and $_.Enabled -eq $true)
+                        if (($script:date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -and $_.Enabled -eq $true)
                         {
-                            if ($_.pwdLastSet -ne $null)
-                            {
-                                $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
-                            }
-                            else
-                            {
-                                $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value $null -Force
-                            }
-
                             $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
                         }
                     }
@@ -1104,26 +1116,17 @@ function Scan_Comp()
                             default {$LastModifiedDate = 180}
                         }
 
-                        if (($date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -and $_.Enabled -eq $false)
+                        if (($script:date - $_.modifyTimeStamp).Days -ge $LastModifiedDate -and $_.Enabled -eq $false)
                         {
-                            $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($date - $_.modifyTimeStamp).Days -Force
+                            $_ | Add-Member -MemberType NoteProperty -Name "Days Since Last Mod" -Value ($script:date - $_.modifyTimeStamp).Days -Force
                             $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
                         }
                     }
 
                     else
                     {
-                        if (($date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -and $_.Enabled -eq $true)
+                        if (($script:date - ([datetime]::FromFileTime($_.lastLogonTimeStamp))).Days -ge $daysOld -and $_.Enabled -eq $true)
                         {
-                            if ($_.pwdLastSet -ne $null)
-                            {
-                                $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value ($date - ([datetime]::FromFileTime($_.pwdLastSet))).Days -Force
-                            }
-                            else
-                            {
-                                $_ | Add-Member -MemberType NoteProperty -Name "Pwd Age" -Value $null -Force
-                            }
-
                             $listMatching_Comp.add($_.CanonicalName,$_) # Use CanonicalName to capture duplicate entries
                         }
                     }
@@ -1138,7 +1141,7 @@ function Scan_Comp()
         }
     }
     Catch{
-        Write-Host("Scan broke out of processing, continuing back to main program")  
+        Write-Host "Scan broke out of processing, continuing back to main program" -ForegroundColor Red -BackgroundColor Gray  
       }
   
 }
@@ -1212,10 +1215,11 @@ function Import_CSV_Comp()
     # Setup the data
     $array_import = @()
     $array_import = Import-Csv -Path $fd.FileName
-    \
+    $listMatching_Comp.Clear()
     foreach ($child in $array_import)
     {
-        $array_Comp.Add($child.CanonicalName,$child)
+        $listMatching_Comp.Add($child.CanonicalName,$child)
+        $Matches_Comp.Text = $listMatching_Comp.Count.ToString()
     }
 
     [System.Windows.Forms.MessageBox]::Show("CSV import completed", "Status")
@@ -1400,7 +1404,7 @@ function Filters_Comp()
         
         foreach ($child in $listMatching_Comp.Values)
         {
-            if (($date - $child.modifyTimeStamp).Days -le $LastModifiedDate)
+            if (($script:date - $child.modifyTimeStamp).Days -le $LastModifiedDate)
             {
                 Write-Host "Adding -" $child.Name "to removal list"
                 $removal_List.add($child.CanonicalName,$child.CanonicalName)
