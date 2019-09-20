@@ -1,4 +1,15 @@
-﻿# Version 2.6
+﻿# !!!!!!!!!!!!!!!!
+$ADTVersion = 2.7
+# !!!!!!!!!!!!!!!!
+
+# Version 2.7
+# Scott P. Morton
+# 9/20/2019
+# Removed remnants of VMware checks for CO's
+# Added a processed counter to the COT (Comp Obj Tool)
+# Need to sync User object tool methods
+
+# Version 2.6
 # Scott P. Morton
 # 9/18/2019
 # Removed the addition PWD Age from returned data in computer object tool
@@ -54,10 +65,6 @@ $filters_Usr = $false
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.drawing
-
-#. .\User-Object-Tool.ps1
-
-$ADTVersion = 2.6
 
 # form objects
 $Form1 = New-Object System.Windows.Forms.Form 
@@ -121,6 +128,8 @@ $Matches_Comp = New-Object System.Windows.Forms.Label
 $Matches_Comp_Label = New-Object System.Windows.Forms.Label
 $Selected_Comp = New-Object System.Windows.Forms.Label
 $Selected_Comp_Label = New-Object System.Windows.Forms.Label
+$Processed_Comp = New-Object System.Windows.Forms.Label
+$Processed_Comp_Label = New-Object System.Windows.Forms.Label
 $Operation_Label_Comp = New-Object System.Windows.Forms.Label
 $disableObject_Comp = New-Object System.Windows.Forms.RadioButton
 $deleteObject_Comp = New-Object System.Windows.Forms.RadioButton
@@ -481,7 +490,7 @@ Function UserObjectsTab()
 
 Function CompObjectsTab()
 {
-    $ScanButton_Comp.Location = New-Object System.Drawing.Size(10,295)
+    $ScanButton_Comp.Location = New-Object System.Drawing.Size(10,260)
     $ScanButton_Comp.Size = $buttonSize
     $ScanButton_Comp.Text = "Scan"
     $ScanButton_Comp.Enabled = $false
@@ -516,7 +525,7 @@ Function CompObjectsTab()
 
     $computerObjTab.Controls.Add($ScanButton_Comp)
 
-    $CancelScanButton_Comp.Location = New-Object System.Drawing.Size(125,295)
+    $CancelScanButton_Comp.Location = New-Object System.Drawing.Size(125,260)
     $CancelScanButton_Comp.Size = $buttonSize
     $CancelScanButton_Comp.Text = "Cancel"
     $CancelScanButton_Comp.Add_Click(
@@ -667,7 +676,6 @@ Function CompObjectsTab()
             $LastModifiedDate_Check_Comp.Checked = $true
             $numOfDays_DrpText_Comp.Enabled = $false
             $PingCheck_Comp.Enabled = $false
-            $ServerCheck_Comp.Enabled = $false
             $deleteObject_Comp.Checked = $true
             $disableObject_Comp.Enabled = $false
         }
@@ -676,7 +684,6 @@ Function CompObjectsTab()
             $LastModifiedDate_Check_Comp.Checked = $false
             $numOfDays_DrpText_Comp.Enabled = $true
             $PingCheck_Comp.Enabled = $true
-            $ServerCheck_Comp.Enabled = $true
             $disableObject_Comp.Enabled = $true
             $disableObject_Comp.Checked = $true
         }
@@ -693,25 +700,36 @@ Function CompObjectsTab()
     $OSlist_Comp_Label.Text = "Select the Operating Systems to modify (ctrl-click for multiple)"
     $computerObjTab.Controls.Add($OSlist_Comp_Label) 
 
-    $Matches_Comp.Location = New-Object System.Drawing.Size(10,330) 
+    $Matches_Comp.Location = New-Object System.Drawing.Size(10,300) 
     $Matches_Comp.Size = New-Object System.Drawing.Size(60,20) 
     $Matches_Comp.Text = "0"
     $computerObjTab.Controls.Add($Matches_Comp) 
 
-    $Matches_Comp_Label.Location = New-Object System.Drawing.Size(100,330) 
+    $Matches_Comp_Label.Location = New-Object System.Drawing.Size(100,300) 
     $Matches_Comp_Label.Size = New-Object System.Drawing.Size(250,20) 
-    $Matches_Comp_Label.Text = "- Matching systems"
+    $Matches_Comp_Label.Text = "- Matching objects"
     $computerObjTab.Controls.Add($Matches_Comp_Label) 
 
-    $Selected_Comp.Location = New-Object System.Drawing.Size(10,355) 
+    $Selected_Comp.Location = New-Object System.Drawing.Size(10,325) 
     $Selected_Comp.Size = New-Object System.Drawing.Size(60,20) 
     $Selected_Comp.Text = "0"
     $computerObjTab.Controls.Add($Selected_Comp) 
 
-    $Selected_Comp_Label.Location = New-Object System.Drawing.Size(100,355) 
+    $Selected_Comp_Label.Location = New-Object System.Drawing.Size(100,325) 
     $Selected_Comp_Label.Size = New-Object System.Drawing.Size(250,20) 
     $Selected_Comp_Label.Text = "- Selected objects"
-    $computerObjTab.Controls.Add($Selected_Comp_Label) 
+    $computerObjTab.Controls.Add($Selected_Comp_Label)
+
+    $Processed_Comp.Location = New-Object System.Drawing.Size(10,350) 
+    $Processed_Comp.Size = New-Object System.Drawing.Size(60,20) 
+    $Processed_Comp.Text = "0"
+    $computerObjTab.Controls.Add($Processed_Comp) 
+
+    $Processed_Comp_Label.Location = New-Object System.Drawing.Size(100,350) 
+    $Processed_Comp_Label.Size = New-Object System.Drawing.Size(250,20) 
+    $Processed_Comp_Label.Text = "- Processed objects"
+    $computerObjTab.Controls.Add($Processed_Comp_Label) 
+
 
     $Operation_Label_Comp.Location = New-Object System.Drawing.Size(10,380) 
     $Operation_Label_Comp.Size = New-Object System.Drawing.Size(250,20) 
@@ -1148,7 +1166,7 @@ function Scan_Comp()
 
 function Perform_Operation_Comp()
 {
-
+    $counter = 0
     try{
         foreach ($child in $array_Comp.Values ) 
         {
@@ -1156,7 +1174,7 @@ function Perform_Operation_Comp()
             {
                 try
                 {
-                    Write-Host "Disabling - "$child.SamAccountName
+                    #Write-Host "Disabling - "$child.SamAccountName
                     set-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -enabled $False
                 }
 
@@ -1180,6 +1198,9 @@ function Perform_Operation_Comp()
             if($script:Cancel_Comp -eq $true){
                 break
             }
+            $counter += 1
+            $Processed_Comp.Text = $counter.ToString()
+            [System.Windows.Forms.Application]::DoEvents()
         }
     }
     catch{
@@ -1220,6 +1241,7 @@ function Import_CSV_Comp()
     {
         $listMatching_Comp.Add($child.CanonicalName,$child)
         $Matches_Comp.Text = $listMatching_Comp.Count.ToString()
+        [System.Windows.Forms.Application]::DoEvents()
     }
 
     [System.Windows.Forms.MessageBox]::Show("CSV import completed", "Status")
@@ -1266,6 +1288,7 @@ function LoadOSs_Comp()
         {
             continue
         }
+        [System.Windows.Forms.Application]::DoEvents()
     }
 
     foreach ($child in $listOS_Comp.Values)
@@ -1294,6 +1317,7 @@ function Display_Selections_Comp()
                 break
            }
         }
+        [System.Windows.Forms.Application]::DoEvents()
     }
 
     $Selected_Comp.Text = $array_Comp.Count.ToString()
@@ -1303,19 +1327,6 @@ function Display_Selections_Comp()
 function Validate_Comp()
 {
     $removal_List = @{}
-
-    if ($ServerCheck_Comp.Checked)
-    {
-        $username = "us\"+$creds.UserName
-        $credential = New-Object System.Management.Automation.PsCredential($username, $creds.Password)
-
-        Connect-VIServer -Server Al001VMWAPP11.us.chs.net -AllLinked -Credential $credential
-        Connect-VIServer -Server Al001VMWAPP01.us.chs.net -AllLinked -Credential $credential
-        Connect-VIServer -Server Al001VMWAPP03.us.chs.net -AllLinked -Credential $credential
-        Connect-VIServer -Server Al001VMWAPP04.us.chs.net -AllLinked -Credential $credential
-        Connect-VIServer -Server AL001VMWAPP06.us.chs.net -AllLinked -Credential $credential
-        Connect-VIServer -Server tnctpmwvc01.us.chstest.net -Credential $credential
-    }
 
     foreach ($child in $listMatching_Comp.Values)
     {
@@ -1331,16 +1342,6 @@ function Validate_Comp()
                     Write-Host "Adding -" $child.Name "to removal list"
                     $removal_List.add($child.CanonicalName,$child.CanonicalName)
                     continue
-                }
-
-                if ($ServerCheck_Comp.Checked)
-                {
-                    if (Check_VMWare($child.Name))
-                    {
-                        Write-Host "Adding -" $child.Name "to removal list"
-                        $removal_List.add($child.CanonicalName,$child.CanonicalName)
-                        continue
-                    }
                 }
             }
 
@@ -1359,16 +1360,6 @@ function Validate_Comp()
                     Write-Host "Adding -" $child.Name "to removal list"
                     $removal_List.add($child.CanonicalName,$child.CanonicalName)
                     continue
-                }
-
-                if ($ServerCheck_Comp.Checked)
-                {
-                    if (Check_VMWare($child.Name))
-                    {
-                        Write-Host "Adding -" $child.Name "to removal list"
-                        $removal_List.add($child.CanonicalName,$child.CanonicalName)
-                        continue
-                    }
                 }
             }
 
