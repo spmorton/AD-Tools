@@ -1,6 +1,11 @@
 ﻿# !!!!!!!!!!!!!!!!
-$ADTVersion = 2.7
+$ADTVersion = 2.8
 # !!!!!!!!!!!!!!!!
+
+# Version 2.8
+# Scott P. Morton
+# 9/20/2019
+# corrected some logic around using current creds during disable/delete of CO's
 
 # Version 2.7
 # Scott P. Morton
@@ -1166,6 +1171,7 @@ function Scan_Comp()
 
 function Perform_Operation_Comp()
 {
+    Write-Host "Disabling objects"
     $counter = 0
     try{
         foreach ($child in $array_Comp.Values ) 
@@ -1174,8 +1180,12 @@ function Perform_Operation_Comp()
             {
                 try
                 {
-                    #Write-Host "Disabling - "$child.SamAccountName
-                    set-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -enabled $False
+                    if($CurrentCreds_Check.Checked){
+                        set-ADComputer -Identity $child.SamAccountName -Server $Server.Text -enabled $False
+                    }
+                    else{
+                        set-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -enabled $False
+                    }
                 }
 
                 catch
@@ -1188,7 +1198,12 @@ function Perform_Operation_Comp()
             {
                 try
                 {
-                    Remove-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -Confirm:$False
+                    if($CurrentCreds_Check.Checked){
+                        Remove-ADComputer -Identity $child.SamAccountName -Server $Server.Text -Confirm:$False
+                    }
+                    else{
+                        Remove-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -Confirm:$False
+                    }
                 }
                 catch
                 {
