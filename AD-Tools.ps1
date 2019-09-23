@@ -1,10 +1,16 @@
 ﻿# !!!!!!!!!!!!!!!!
-$ADTVersion = 2.9.1
+$ADTVersion = 2.10
 # !!!!!!!!!!!!!!!!
+
+# Version 2.10
+# Scott P. Morton
+# 9/23/2019
+# Changed from Remove-ADComputer to Remove-ADObject to avoid failures where bitlocker keys are stored in the computer object as a container
+# This requires a recursive delete of the object
 
 # Version 2.9.1
 # Scott P. Morton
-# 9/20/2019
+# 9/23/2019
 # Added a throttle function to the delete process in COT to avoid excessive actions on the target DC
 # Corected a cosmetic issue and a minor bug
 
@@ -1211,11 +1217,14 @@ function Perform_Operation_Comp()
             {
                 try
                 {
+                    $x = Get-ADComputer $child.SamAccountName  -Server $Server.Text
                     if($CurrentCreds_Check.Checked){
-                        Remove-ADComputer -Identity $child.SamAccountName -Server $Server.Text -Confirm:$False
+                        #Remove-ADComputer -Identity $child.SamAccountName -Server $Server.Text -Confirm:$False
+                        Remove-ADObject -Identity $x -Server $Server.Text -Recursive -Confirm:$False
                     }
                     else{
-                        Remove-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -Confirm:$False
+                        #Remove-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -Confirm:$False
+                        Remove-ADObject -Identity $x -Server $Server.Text -Recursive -Confirm:$False -Credential $creds
                     }
                 }
                 catch
