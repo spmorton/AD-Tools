@@ -1,12 +1,13 @@
 ﻿# !!!!!!!!!!!!!!!!
-$ADTVersion = 2.10
+$ADTVersion = 2.10.1
 # !!!!!!!!!!!!!!!!
 
-# Version 2.10
+# Version 2.10.1
 # Scott P. Morton
 # 9/23/2019
 # Changed from Remove-ADComputer to Remove-ADObject to avoid failures where bitlocker keys are stored in the computer object as a container
 # This requires a recursive delete of the object
+# More cosmetic corrections
 
 # Version 2.9.1
 # Scott P. Morton
@@ -1229,6 +1230,7 @@ function Perform_Operation_Comp()
                 }
                 catch
                 {
+                    Write-Host "Processing failed on host $child.SamAccountName"
                     $failures_Comp.Add($child.SamAccountName,$child)
                 }
             }
