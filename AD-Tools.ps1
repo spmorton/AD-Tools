@@ -1,11 +1,12 @@
 ﻿# !!!!!!!!!!!!!!!!
-$ADTVersion = 2.9
+$ADTVersion = 2.9.1
 # !!!!!!!!!!!!!!!!
 
-# Version 2.9
+# Version 2.9.1
 # Scott P. Morton
 # 9/20/2019
 # Added a throttle function to the delete process in COT to avoid excessive actions on the target DC
+# Corected a cosmetic issue and a minor bug
 
 # Version 2.8
 # Scott P. Morton
@@ -554,7 +555,7 @@ Function CompObjectsTab()
     $ModifyButton_Comp.Add_Click({
         $script:Cancel_Comp = $false
         $CancelOpsButton_Comp.Enabled = $true
-        $ImportCSVButton_Comp.Enable = $false
+        $ImportCSVButton_Comp.Enabled = $false
         Perform_Operation_Comp
     })
     $computerObjTab.Controls.Add($ModifyButton_Comp)
@@ -1176,7 +1177,14 @@ function Scan_Comp()
 
 function Perform_Operation_Comp()
 {
-    Write-Host "Disabling objects"
+    if ($disableObject_Comp.Checked)
+    {
+        Write-Host "Processing 'Disable' objects"
+    }
+    elseif ($deleteObject_Comp.Checked)
+    {
+        Write-Host "Processing 'Delete' objects"
+    }
     $counter = 0
     try{
         foreach ($child in $array_Comp.Values ) 
