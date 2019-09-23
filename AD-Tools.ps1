@@ -1,6 +1,11 @@
 ﻿# !!!!!!!!!!!!!!!!
-$ADTVersion = 2.8
+$ADTVersion = 2.9
 # !!!!!!!!!!!!!!!!
+
+# Version 2.9
+# Scott P. Morton
+# 9/20/2019
+# Added a throttle function to the delete process in COT to avoid excessive actions on the target DC
 
 # Version 2.8
 # Scott P. Morton
@@ -1216,6 +1221,14 @@ function Perform_Operation_Comp()
             $counter += 1
             $Processed_Comp.Text = $counter.ToString()
             [System.Windows.Forms.Application]::DoEvents()
+            if($counter%100 -eq 0)
+            {
+                $Time = [System.Diagnostics.Stopwatch]::StartNew()
+                while($Time.ElapsedMilliseconds -lt 10000)
+                {
+                    [System.Windows.Forms.Application]::DoEvents()
+                }
+            }
         }
     }
     catch{
