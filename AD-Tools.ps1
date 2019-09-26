@@ -1,13 +1,15 @@
 ﻿# !!!!!!!!!!!!!!!!
-$ADTVersion = 2.10.1
+$ADTVersion = "2.10.2"
 # !!!!!!!!!!!!!!!!
 
-# Version 2.10.1
+# Version 2.10.2
 # Scott P. Morton
 # 9/23/2019
 # Changed from Remove-ADComputer to Remove-ADObject to avoid failures where bitlocker keys are stored in the computer object as a container
 # This requires a recursive delete of the object
 # More cosmetic corrections
+# 9/24/2019 Set cancel buttons to disabled after process completes, cosmetic issue with form name
+# 9/26/2019 Other various improvements
 
 # Version 2.9.1
 # Scott P. Morton
@@ -222,6 +224,21 @@ $TabcontrolAging.Controls.Add($computerObjTab)
 ###################################################################
 # Begin Build .Net Objects Functions
 
+Function Check_Obj_Aging_Start()
+{
+    if($server.Text -eq "" -or ($script:creds -eq $null -and -not $CurrentCreds_Check.Checked ))
+    {
+        $ScanButton_Usr.Enabled = $false
+        $ScanButton_Comp.Enabled = $false
+        $ModifyButton_Usr.Enabled = $false
+        $ModifyButton_Comp.Enabled = $false
+        return $true
+    }
+    $ScanButton_Usr.Enabled = $false
+    $ScanButton_Comp.Enabled = $false
+    $ModifyButton_Usr.Enabled = $false
+    $ModifyButton_Comp.Enabled = $false
+}
 Function ObjectAging()
 {
     $Server.Location = New-Object System.Drawing.Size(5,35)
@@ -325,10 +342,10 @@ Function UserToolsTab()
     $LockoutButton_UT.Text = "Scan for Lockouts"
     $LockoutButton_UT.enabled = $false
     $LockoutButton_UT.Add_Click(
-                            {
-                                $LockoutButton_UT.enabled = $false
-                                Lockout_UsrTool
-                            })
+        {
+            $LockoutButton_UT.enabled = $false
+            Lockout_UsrTool
+        })
     $userToolsTab.Controls.Add($LockoutButton_UT)
 }
 
@@ -437,28 +454,31 @@ Function UserObjectsTab()
     $ScanButton_Usr.Size = New-Object System.Drawing.Size(75,25)
     $ScanButton_Usr.Text = "Scan"
     $ScanButton_Usr.Add_Click(
-                            {
-                                $script:Cancel_Usr = $false
-                                $CancelButton_Usr.Enabled = $true
-                                Scan_Usr
- 
-                                $script:array_Usr = @()
-                                foreach ( $child in $listMatching_Usr.Values )
-                                {
-                                    $script:array_Usr += $child
-                                    [System.Windows.Forms.Application]::DoEvents()
-                                }
+        {
+            if(Check_Obj_Aging_Start)
+            {
+                [System.Windows.Forms.MessageBox]::Show("Missing server info or credentials", "Status")
+                return
+            }
+            $script:Cancel_Usr = $false
+            $CancelButton_Usr.Enabled = $true
+            Scan_Usr
+            $CancelButton_Usr.Enabled = $false
 
-                                $Matches_Usr.Text = $listMatching_Usr.Count.ToString()
+            $script:array_Usr = @()
+            foreach ( $child in $listMatching_Usr.Values )
+            {
+                $script:array_Usr += $child
+                [System.Windows.Forms.Application]::DoEvents()
+            }
 
-                                $DisplayButton_Usr.Enabled = $true
-                                $ExportCSVButton_Usr.Enabled = $true
+            $Matches_Usr.Text = $listMatching_Usr.Count.ToString()
 
+            $DisplayButton_Usr.Enabled = $true
+            $ExportCSVButton_Usr.Enabled = $true
 
-
-                                [System.Windows.Forms.MessageBox]::Show("Scan completed", "Status")
-
-                            })
+            [System.Windows.Forms.MessageBox]::Show("Scan completed", "Status")
+        })
 
     $userObjTab.Controls.Add($ScanButton_Usr)
 
@@ -475,7 +495,15 @@ Function UserObjectsTab()
     $ModifyButton_Usr.Size = New-Object System.Drawing.Size(140,25)
     $ModifyButton_Usr.Text = "Perform Operation"
     $ModifyButton_Usr.Enabled = $false
-    $ModifyButton_Usr.Add_Click({Perform_Operation_Usr})
+    $ModifyButton_Usr.Add_Click(
+        {
+            if(Check_Obj_Aging_Start)
+            {
+                [System.Windows.Forms.MessageBox]::Show("Missing server info or credentials", "Status")
+                return
+            }
+            Perform_Operation_Usr
+        })
     $userObjTab.Controls.Add($ModifyButton_Usr)
 
     $ImportCSVButton_Usr.Location = New-Object System.Drawing.Size(155,375)
@@ -513,33 +541,40 @@ Function CompObjectsTab()
     $ScanButton_Comp.Text = "Scan"
     $ScanButton_Comp.Enabled = $false
     $ScanButton_Comp.Add_Click(
-                            {
-                                $script:Cancel_Comp = $false
-                                $CancelScanButton_Comp.Enabled = $true
-                                $ScanButton_Comp.Enabled = $false
-                                $ImportCSVButton_Comp.Enabled = $false
-                                Scan_Comp
- 
-                                if ($LastModifiedDate_Check_Comp.Checked)
-                                {
-                                    Filters_Comp
-                                } 
+        {
+            if(Check_Obj_Aging_Start)
+            {
+                [System.Windows.Forms.MessageBox]::Show("Missing server info or credentials", "Status")
+                return
+            }
+            $script:Cancel_Comp = $false
+            $CancelScanButton_Comp.Enabled = $true
+            $ScanButton_Comp.Enabled = $false
+            $ImportCSVButton_Comp.Enabled = $false
+            Scan_Comp
+            $ScanButton_Comp.Enabled = $true
+            $CancelScanButton_Comp.Enabled = $false
 
-                                if ($PingCheck_Comp.Checked)
-                                {
-                                    Validate_Comp
-                                }
+            if ($LastModifiedDate_Check_Comp.Checked)
+            {
+                Filters_Comp
+            } 
 
-                                LoadOSs_Comp
+            if ($PingCheck_Comp.Checked)
+            {
+                Validate_Comp
+            }
 
-                                $Matches_Comp.Text = $listMatching_Comp.Count.ToString()
+            LoadOSs_Comp
 
-                                $DisplayButton_Comp.Enabled = $true
-                                $ExportCSVButton_Comp.Enabled = $true
+            $Matches_Comp.Text = $listMatching_Comp.Count.ToString()
 
-                                [System.Windows.Forms.MessageBox]::Show("Scan completed", "Status")
+            $DisplayButton_Comp.Enabled = $true
+            $ExportCSVButton_Comp.Enabled = $true
 
-                            })
+            [System.Windows.Forms.MessageBox]::Show("Scan completed", "Status")
+
+        })
 
     $computerObjTab.Controls.Add($ScanButton_Comp)
 
@@ -559,12 +594,19 @@ Function CompObjectsTab()
     $ModifyButton_Comp.Size = $buttonSize
     $ModifyButton_Comp.Text = "Perform Operation"
     $ModifyButton_Comp.Enabled = $false
-    $ModifyButton_Comp.Add_Click({
-        $script:Cancel_Comp = $false
-        $CancelOpsButton_Comp.Enabled = $true
-        $ImportCSVButton_Comp.Enabled = $false
-        Perform_Operation_Comp
-    })
+    $ModifyButton_Comp.Add_Click(
+        {
+            if(Check_Obj_Aging_Start)
+            {
+                [System.Windows.Forms.MessageBox]::Show("Missing server info or credentials", "Status")
+                return
+            }
+            $script:Cancel_Comp = $false
+            $CancelOpsButton_Comp.Enabled = $true
+            $ImportCSVButton_Comp.Enabled = $false
+            Perform_Operation_Comp
+            $CancelOpsButton_Comp.Enabled = $false
+        })
     $computerObjTab.Controls.Add($ModifyButton_Comp)
 
     $CancelOpsButton_Comp.Location = New-Object System.Drawing.Size(125,445)
@@ -580,26 +622,27 @@ Function CompObjectsTab()
     $ImportCSVButton_Comp.Location = New-Object System.Drawing.Size(240,445)
     $ImportCSVButton_Comp.Size = $buttonSize
     $ImportCSVButton_Comp.Text = "Import CSV"
-    $ImportCSVButton_Comp.Add_Click({
-        Import_CSV_Comp;
-        LoadOSs_Comp
-        #$Matches_Comp.Text = $listMatching_Comp.Count.ToString()
-        $DisplayButton_Comp.Enabled = $true
-        $ScanButton_Comp.Enabled = $false;
-        $ModifyButton_Comp.Enabled = $true
-    })
+    $ImportCSVButton_Comp.Add_Click(
+        {
+            Import_CSV_Comp;
+            LoadOSs_Comp
+            #$Matches_Comp.Text = $listMatching_Comp.Count.ToString()
+            $DisplayButton_Comp.Enabled = $true
+            $ScanButton_Comp.Enabled = $false;
+            $ModifyButton_Comp.Enabled = $true
+        })
     $computerObjTab.Controls.Add($ImportCSVButton_Comp)
 
     $DisplayButton_Comp.Location = New-Object System.Drawing.Size(355,445)
     $DisplayButton_Comp.Size = $buttonSize
     $DisplayButton_Comp.Text = "Select / Display"
     $DisplayButton_Comp.Add_Click(
-                        {
-                            Display_Selections_Comp
-                            $ModifyButton_Comp.Enabled = $true
-                            $script:exportall_Comp = $false
-                            $ExportCSVButton_Comp.Text = "Export Selected"
-                        })
+        {
+            Display_Selections_Comp
+            $ModifyButton_Comp.Enabled = $true
+            $script:exportall_Comp = $false
+            $ExportCSVButton_Comp.Text = "Export Selected"
+        })
     $DisplayButton_Comp.Enabled = $false
     $computerObjTab.Controls.Add($DisplayButton_Comp)
 
@@ -965,6 +1008,7 @@ Function Scan_Usr()
     }
     Catch{
       Write-Host "Scan broke out of processing, continuing back to main program" -ForegroundColor Red -BackgroundColor Gray
+      Write-Host $_.ScriptStackTrace
     }
 }
 
@@ -1071,9 +1115,9 @@ function Init_Sys_Comp()
     $script:listOS_Comp = @{}
     $script:failures_Comp = @{}
     $OSlist_Comp.Items.Clear()
-    $ScanButton_Comp.Enabled = $false
-    $ModifyButton_Comp.Enabled = $false
     $DisplayButton_Comp.Enabled = $false
+
+    $rc = Check_Obj_Aging_Start
 
     $Selected_Comp.Text = $array_Comp.Count.ToString()
     $Matches_Comp.Text = $listMatching_Comp.Count.ToString()
@@ -1178,6 +1222,7 @@ function Scan_Comp()
     }
     Catch{
         Write-Host "Scan broke out of processing, continuing back to main program" -ForegroundColor Red -BackgroundColor Gray  
+        Write-Host $_.ScriptStackTrace
       }
   
 }
@@ -1252,6 +1297,7 @@ function Perform_Operation_Comp()
     }
     catch{
         Write-Host('Operation broke out of processing, continuing back to main program"')
+        Write-Host $_.ScriptStackTrace
     }
 
     if ($failures_Comp.Count)
