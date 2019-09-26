@@ -1,6 +1,11 @@
 ﻿# !!!!!!!!!!!!!!!!
-$ADTVersion = "2.10.2"
+$ADTVersion = "2.11.1"
 # !!!!!!!!!!!!!!!!
+
+# Version 2.11.1
+# Scott P. Morton
+# 9/26/2019
+# Add option to delete DNS 'A' records while deleting computer objects from AD
 
 # Version 2.10.2
 # Scott P. Morton
@@ -153,9 +158,12 @@ $Processed_Comp_Label = New-Object System.Windows.Forms.Label
 $Operation_Label_Comp = New-Object System.Windows.Forms.Label
 $disableObject_Comp = New-Object System.Windows.Forms.RadioButton
 $deleteObject_Comp = New-Object System.Windows.Forms.RadioButton
+$delete_A_Record_Comp = New-Object System.Windows.Forms.CheckBox
 $Validation_Label_Comp = New-Object System.Windows.Forms.Label
 $CancelScanButton_Comp = New-Object System.Windows.Forms.Button
 $CancelOpsButton_Comp = New-Object System.Windows.Forms.Button
+$DNS_Zone_Label = New-Object System.Windows.Forms.Label
+$DNS_Zone = New-Object System.Windows.Forms.TextBox
 
 
 $InitialFormWindowState = New-Object System.Windows.Forms.FormWindowState
@@ -536,7 +544,100 @@ Function UserObjectsTab()
 
 Function CompObjectsTab()
 {
-    $ScanButton_Comp.Location = New-Object System.Drawing.Size(10,260)
+
+
+    $Validation_Label_Comp.Location = New-Object System.Drawing.Size(10,6) 
+    $Validation_Label_Comp.Size = New-Object System.Drawing.Size(330,20) 
+    $Validation_Label_Comp.Text = "----------------- Validation Checks"
+    $computerObjTab.Controls.Add($Validation_Label_Comp) 
+
+    $PingCheck_Comp.Location = New-Object System.Drawing.Size(10,25)
+    $PingCheck_Comp.Size = New-Object System.Drawing.Size(70,30)
+    $PingCheck_Comp.Text = "Ping Check"
+    $computerObjTab.Controls.Add($PingCheck_Comp)
+
+
+    $Filters_Label_Comp.Location = New-Object System.Drawing.Size(10,75) 
+    $Filters_Label_Comp.Size = New-Object System.Drawing.Size(330,20) 
+    $Filters_Label_Comp.Text = "----------------- Filters"
+    $computerObjTab.Controls.Add($Filters_Label_Comp) 
+
+    $numOfDays_DrpText_Comp.Location = New-Object System.Drawing.Size(10,95)
+    $numOfDays_DrpText_Comp.Size = New-Object System.Drawing.Size(50,20)
+    $numOfDays_DrpText_Comp.DropDownHeight = 100
+    [Void] $numOfDays_DrpText_Comp.Items.Add("180")
+    [Void] $numOfDays_DrpText_Comp.Items.Add("90")
+    [Void] $numOfDays_DrpText_Comp.Items.Add("60")
+    [Void] $numOfDays_DrpText_Comp.Items.Add("45")
+    [Void] $numOfDays_DrpText_Comp.Items.Add("30")
+    $numOfDays_DrpText_Comp.SelectedIndex = 0
+    $computerObjTab.Controls.Add($numOfDays_DrpText_Comp)
+
+    $numOfDays_Label_Comp.Location = New-Object System.Drawing.Size(70,95) 
+    $numOfDays_Label_Comp.Size = New-Object System.Drawing.Size(270,30) 
+    $numOfDays_Label_Comp.Text = "Days since LastLogonTimestamp for unused accounts (Primary search parameter per MicroSoft)"
+    $computerObjTab.Controls.Add($numOfDays_Label_Comp) 
+
+    $LastModifiedDate_Check_Comp.Location = New-Object System.Drawing.Size(10,130)
+    $LastModifiedDate_Check_Comp.Size = New-Object System.Drawing.Size(120,30)
+    $LastModifiedDate_Check_Comp.Text = "Enable LastModifiedDate"
+    $LastModifiedDate_Check_Comp.Add_CheckStateChanged({
+        if ($LastModifiedDate_Check_Comp.Checked)
+        {
+            $ModifiedDate_DrpText_Comp.Enabled = $true
+            $ModifiedDateDrpBx_Label.Enabled = $true
+        }
+        else
+        {
+            $ModifiedDate_DrpText_Comp.Enabled = $false
+            $ModifiedDateDrpBx_Label.Enabled = $false
+        }
+        })
+    $computerObjTab.Controls.Add($LastModifiedDate_Check_Comp)
+
+    $ModifiedDate_DrpText_Comp.Location = New-Object System.Drawing.Size(130,135)
+    $ModifiedDate_DrpText_Comp.Size = New-Object System.Drawing.Size(50,20)
+    $ModifiedDate_DrpText_Comp.DropDownHeight = 100
+    [Void] $ModifiedDate_DrpText_Comp.Items.Add("180")
+    [Void] $ModifiedDate_DrpText_Comp.Items.Add("90")
+    [Void] $ModifiedDate_DrpText_Comp.Items.Add("60")
+    [Void] $ModifiedDate_DrpText_Comp.Items.Add("45")
+    [Void] $ModifiedDate_DrpText_Comp.Items.Add("30")
+    $ModifiedDate_DrpText_Comp.SelectedIndex = 0
+    $ModifiedDate_DrpText_Comp.Enabled = $false
+    $computerObjTab.Controls.Add($ModifiedDate_DrpText_Comp)
+
+    $ModifiedDateDrpBx_Label.Location = New-Object System.Drawing.Size(180,130) 
+    $ModifiedDateDrpBx_Label.Size = New-Object System.Drawing.Size(160,30) 
+    $ModifiedDateDrpBx_Label.Text = "Select the number of days since last modified"
+    $ModifiedDateDrpBx_Label.Enabled = $false
+    $computerObjTab.Controls.Add($ModifiedDateDrpBx_Label) 
+
+    $Disabled_Check_Comp.Location = New-Object System.Drawing.Size(10,170)
+    $Disabled_Check_Comp.Size = New-Object System.Drawing.Size(300,30)
+    $Disabled_Check_Comp.Text = "Search for disabled accounts with LastModifiedDate date greater than Selected number of days"
+    $Disabled_Check_Comp.Add_CheckStateChanged({
+        if ($Disabled_Check_Comp.Checked)
+        {
+            $PingCheck_Comp.Enabled = $false
+            $LastModifiedDate_Check_Comp.Checked = $true
+            $numOfDays_DrpText_Comp.Enabled = $false
+            $PingCheck_Comp.Enabled = $false
+            $deleteObject_Comp.Checked = $true
+            $disableObject_Comp.Enabled = $false
+        }
+        else
+        {
+            $LastModifiedDate_Check_Comp.Checked = $false
+            $numOfDays_DrpText_Comp.Enabled = $true
+            $PingCheck_Comp.Enabled = $true
+            $disableObject_Comp.Enabled = $true
+            $disableObject_Comp.Checked = $true
+        }
+        })
+    $computerObjTab.Controls.Add($Disabled_Check_Comp)
+
+    $ScanButton_Comp.Location = New-Object System.Drawing.Size(10,210)
     $ScanButton_Comp.Size = $buttonSize
     $ScanButton_Comp.Text = "Scan"
     $ScanButton_Comp.Enabled = $false
@@ -578,17 +679,100 @@ Function CompObjectsTab()
 
     $computerObjTab.Controls.Add($ScanButton_Comp)
 
-    $CancelScanButton_Comp.Location = New-Object System.Drawing.Size(125,260)
+    $CancelScanButton_Comp.Location = New-Object System.Drawing.Size(125,210)
     $CancelScanButton_Comp.Size = $buttonSize
     $CancelScanButton_Comp.Text = "Cancel"
     $CancelScanButton_Comp.Add_Click(
-                            {
-                                $script:Cancel_Comp = $true
-                                $CancelScanButton_Comp.Enabled = $false
-                                $ScanButton_Comp.Enabled = $true
-                            })
+        {
+            $script:Cancel_Comp = $true
+            $CancelScanButton_Comp.Enabled = $false
+            $ScanButton_Comp.Enabled = $true
+        })
 
     $computerObjTab.Controls.Add($CancelScanButton_Comp)
+
+    $OSlist_Comp_Label.Location = New-Object System.Drawing.Size(340,6) 
+    $OSlist_Comp_Label.Size = New-Object System.Drawing.Size(430,20) 
+    $OSlist_Comp_Label.Text = "Select the Operating Systems to modify (ctrl-click for multiple)"
+    $computerObjTab.Controls.Add($OSlist_Comp_Label) 
+
+    $OSlist_Comp.Location = New-Object System.Drawing.Size(340,25)
+    $OSlist_Comp.Size = New-Object System.Drawing.Size(440,415)
+    $OSlist_Comp.SelectionMode = [System.Windows.Forms.SelectionMode]::MultiExtended
+    $computerObjTab.Controls.Add($OSlist_Comp) 
+
+    $Matches_Comp.Location = New-Object System.Drawing.Size(10,250) 
+    $Matches_Comp.Size = New-Object System.Drawing.Size(60,20) 
+    $Matches_Comp.Text = "0"
+    $computerObjTab.Controls.Add($Matches_Comp) 
+
+    $Matches_Comp_Label.Location = New-Object System.Drawing.Size(100,250) 
+    $Matches_Comp_Label.Size = New-Object System.Drawing.Size(250,20) 
+    $Matches_Comp_Label.Text = "- Matching objects"
+    $computerObjTab.Controls.Add($Matches_Comp_Label) 
+
+    $Selected_Comp.Location = New-Object System.Drawing.Size(10,275) 
+    $Selected_Comp.Size = New-Object System.Drawing.Size(60,20) 
+    $Selected_Comp.Text = "0"
+    $computerObjTab.Controls.Add($Selected_Comp) 
+
+    $Selected_Comp_Label.Location = New-Object System.Drawing.Size(100,275) 
+    $Selected_Comp_Label.Size = New-Object System.Drawing.Size(250,20) 
+    $Selected_Comp_Label.Text = "- Selected objects"
+    $computerObjTab.Controls.Add($Selected_Comp_Label)
+
+    $Processed_Comp.Location = New-Object System.Drawing.Size(10,300) 
+    $Processed_Comp.Size = New-Object System.Drawing.Size(60,20) 
+    $Processed_Comp.Text = "0"
+    $computerObjTab.Controls.Add($Processed_Comp) 
+
+    $Processed_Comp_Label.Location = New-Object System.Drawing.Size(100,300) 
+    $Processed_Comp_Label.Size = New-Object System.Drawing.Size(250,20) 
+    $Processed_Comp_Label.Text = "- Processed objects"
+    $computerObjTab.Controls.Add($Processed_Comp_Label) 
+
+
+    $Operation_Label_Comp.Location = New-Object System.Drawing.Size(10,325) 
+    $Operation_Label_Comp.Size = New-Object System.Drawing.Size(250,20) 
+    $Operation_Label_Comp.Text = "Select the desired operation"
+    $computerObjTab.Controls.Add($Operation_Label_Comp) 
+
+    $disableObject_Comp.Location = New-Object System.Drawing.Size(10,340)
+    $disableObject_Comp.Text = "Disable Objects"
+    $disableObject_Comp.Checked = $true
+    $disableObject_Comp.Add_Click({
+        $delete_A_Record_Comp.Enabled = $false
+        $delete_A_Record_Comp.Checked = $false
+        $DNS_Zone.Enabled = $false
+    })
+    $computerObjTab.Controls.Add($disableObject_Comp)
+
+    $deleteObject_Comp.Location = New-Object System.Drawing.Size(160,340) 
+    $deleteObject_Comp.Text = "Delete Objects"
+    $deleteObject_Comp.Add_Click({
+        $delete_A_Record_Comp.Enabled = $true
+        $delete_A_Record_Comp.Checked = $true
+        $DNS_Zone.Enabled = $true
+        $dom = Get-ADDomain
+        $DNS_Zone.Text = $dom.DNSRoot
+    })
+    $computerObjTab.Controls.Add($deleteObject_Comp)
+
+    $delete_A_Record_Comp.Location = New-Object System.Drawing.Size(160,365)
+    $delete_A_Record_Comp.Size = New-Object System.Drawing.Size(180,20)
+    $delete_A_Record_Comp.Enabled = $false
+    $delete_A_Record_Comp.Text = "Delete DNS 'A' Records"
+    $computerObjTab.Controls.Add($delete_A_Record_Comp)
+
+    $DNS_Zone_Label.Location = New-Object System.Drawing.Size(10,390)
+    $DNS_Zone_Label.Size = New-Object System.Drawing.Size(280,20)
+    $DNS_Zone_Label.Text = "DNS zone for 'A' records, current domain is default"
+    $computerObjTab.Controls.Add($DNS_Zone_Label)
+
+    $DNS_Zone.Location = New-Object System.Drawing.Size(10,410)
+    $DNS_Zone.Size = New-Object System.Drawing.Size(280,20)
+    $DNS_Zone.Enabled = $false
+    $computerObjTab.Controls.Add($DNS_Zone)
 
     $ModifyButton_Comp.Location = New-Object System.Drawing.Size(10,445)
     $ModifyButton_Comp.Size = $buttonSize
@@ -645,7 +829,6 @@ Function CompObjectsTab()
         })
     $DisplayButton_Comp.Enabled = $false
     $computerObjTab.Controls.Add($DisplayButton_Comp)
-
     
     $ExportCSVButton_Comp.Location = New-Object System.Drawing.Size(470,445)
     $ExportCSVButton_Comp.Size = $buttonSize
@@ -660,152 +843,6 @@ Function CompObjectsTab()
     $ResetButton_Comp.Enabled = $true
     $ResetButton_Comp.Add_Click({Init_Sys_Comp})
     $computerObjTab.Controls.Add($ResetButton_Comp)
-
-    $PingCheck_Comp.Location = New-Object System.Drawing.Size(10,75)
-    $PingCheck_Comp.Size = New-Object System.Drawing.Size(70,30)
-    $PingCheck_Comp.Text = "Ping Check"
-    $computerObjTab.Controls.Add($PingCheck_Comp)
-
-    $Validation_Label_Comp.Location = New-Object System.Drawing.Size(10,55) 
-    $Validation_Label_Comp.Size = New-Object System.Drawing.Size(330,20) 
-    $Validation_Label_Comp.Text = "----------------- Validation Checks"
-    $computerObjTab.Controls.Add($Validation_Label_Comp) 
-
-    $Filters_Label_Comp.Location = New-Object System.Drawing.Size(10,115) 
-    $Filters_Label_Comp.Size = New-Object System.Drawing.Size(330,20) 
-    $Filters_Label_Comp.Text = "----------------- Filters"
-    $computerObjTab.Controls.Add($Filters_Label_Comp) 
-
-    $numOfDays_DrpText_Comp.Location = New-Object System.Drawing.Size(10,145)
-    $numOfDays_DrpText_Comp.Size = New-Object System.Drawing.Size(50,20)
-    $numOfDays_DrpText_Comp.DropDownHeight = 100
-    [Void] $numOfDays_DrpText_Comp.Items.Add("180")
-    [Void] $numOfDays_DrpText_Comp.Items.Add("90")
-    [Void] $numOfDays_DrpText_Comp.Items.Add("60")
-    [Void] $numOfDays_DrpText_Comp.Items.Add("45")
-    [Void] $numOfDays_DrpText_Comp.Items.Add("30")
-    $numOfDays_DrpText_Comp.SelectedIndex = 0
-    $computerObjTab.Controls.Add($numOfDays_DrpText_Comp)
-
-    $numOfDays_Label_Comp.Location = New-Object System.Drawing.Size(70,140) 
-    $numOfDays_Label_Comp.Size = New-Object System.Drawing.Size(270,30) 
-    $numOfDays_Label_Comp.Text = "Days since LastLogonTimestamp for unused accounts (Primary search parameter per MicroSoft)"
-    $computerObjTab.Controls.Add($numOfDays_Label_Comp) 
-
-    $LastModifiedDate_Check_Comp.Location = New-Object System.Drawing.Size(10,180)
-    $LastModifiedDate_Check_Comp.Size = New-Object System.Drawing.Size(120,30)
-    $LastModifiedDate_Check_Comp.Text = "Enable LastModifiedDate"
-    $LastModifiedDate_Check_Comp.Add_CheckStateChanged({
-        if ($LastModifiedDate_Check_Comp.Checked)
-        {
-            $ModifiedDate_DrpText_Comp.Enabled = $true
-            $ModifiedDateDrpBx_Label.Enabled = $true
-        }
-        else
-        {
-            $ModifiedDate_DrpText_Comp.Enabled = $false
-            $ModifiedDateDrpBx_Label.Enabled = $false
-        }
-        })
-    $computerObjTab.Controls.Add($LastModifiedDate_Check_Comp)
-
-    $ModifiedDate_DrpText_Comp.Location = New-Object System.Drawing.Size(130,185)
-    $ModifiedDate_DrpText_Comp.Size = New-Object System.Drawing.Size(50,20)
-    $ModifiedDate_DrpText_Comp.DropDownHeight = 100
-    [Void] $ModifiedDate_DrpText_Comp.Items.Add("180")
-    [Void] $ModifiedDate_DrpText_Comp.Items.Add("90")
-    [Void] $ModifiedDate_DrpText_Comp.Items.Add("60")
-    [Void] $ModifiedDate_DrpText_Comp.Items.Add("45")
-    [Void] $ModifiedDate_DrpText_Comp.Items.Add("30")
-    $ModifiedDate_DrpText_Comp.SelectedIndex = 0
-    $ModifiedDate_DrpText_Comp.Enabled = $false
-    $computerObjTab.Controls.Add($ModifiedDate_DrpText_Comp)
-
-    $ModifiedDateDrpBx_Label.Location = New-Object System.Drawing.Size(180,180) 
-    $ModifiedDateDrpBx_Label.Size = New-Object System.Drawing.Size(160,30) 
-    $ModifiedDateDrpBx_Label.Text = "Select the number of days since last modified"
-    $ModifiedDateDrpBx_Label.Enabled = $false
-    $computerObjTab.Controls.Add($ModifiedDateDrpBx_Label) 
-
-    $Disabled_Check_Comp.Location = New-Object System.Drawing.Size(10,220)
-    $Disabled_Check_Comp.Size = New-Object System.Drawing.Size(300,30)
-    $Disabled_Check_Comp.Text = "Search for disabled accounts with LastModifiedDate date greater than Selected number of days"
-    $Disabled_Check_Comp.Add_CheckStateChanged({
-        if ($Disabled_Check_Comp.Checked)
-        {
-            $PingCheck_Comp.Enabled = $false
-            $LastModifiedDate_Check_Comp.Checked = $true
-            $numOfDays_DrpText_Comp.Enabled = $false
-            $PingCheck_Comp.Enabled = $false
-            $deleteObject_Comp.Checked = $true
-            $disableObject_Comp.Enabled = $false
-        }
-        else
-        {
-            $LastModifiedDate_Check_Comp.Checked = $false
-            $numOfDays_DrpText_Comp.Enabled = $true
-            $PingCheck_Comp.Enabled = $true
-            $disableObject_Comp.Enabled = $true
-            $disableObject_Comp.Checked = $true
-        }
-        })
-    $computerObjTab.Controls.Add($Disabled_Check_Comp)
-
-    $OSlist_Comp.Location = New-Object System.Drawing.Size(340,25)
-    $OSlist_Comp.Size = New-Object System.Drawing.Size(440,415)
-    $OSlist_Comp.SelectionMode = [System.Windows.Forms.SelectionMode]::MultiExtended
-    $computerObjTab.Controls.Add($OSlist_Comp) 
-
-    $OSlist_Comp_Label.Location = New-Object System.Drawing.Size(340,6) 
-    $OSlist_Comp_Label.Size = New-Object System.Drawing.Size(430,20) 
-    $OSlist_Comp_Label.Text = "Select the Operating Systems to modify (ctrl-click for multiple)"
-    $computerObjTab.Controls.Add($OSlist_Comp_Label) 
-
-    $Matches_Comp.Location = New-Object System.Drawing.Size(10,300) 
-    $Matches_Comp.Size = New-Object System.Drawing.Size(60,20) 
-    $Matches_Comp.Text = "0"
-    $computerObjTab.Controls.Add($Matches_Comp) 
-
-    $Matches_Comp_Label.Location = New-Object System.Drawing.Size(100,300) 
-    $Matches_Comp_Label.Size = New-Object System.Drawing.Size(250,20) 
-    $Matches_Comp_Label.Text = "- Matching objects"
-    $computerObjTab.Controls.Add($Matches_Comp_Label) 
-
-    $Selected_Comp.Location = New-Object System.Drawing.Size(10,325) 
-    $Selected_Comp.Size = New-Object System.Drawing.Size(60,20) 
-    $Selected_Comp.Text = "0"
-    $computerObjTab.Controls.Add($Selected_Comp) 
-
-    $Selected_Comp_Label.Location = New-Object System.Drawing.Size(100,325) 
-    $Selected_Comp_Label.Size = New-Object System.Drawing.Size(250,20) 
-    $Selected_Comp_Label.Text = "- Selected objects"
-    $computerObjTab.Controls.Add($Selected_Comp_Label)
-
-    $Processed_Comp.Location = New-Object System.Drawing.Size(10,350) 
-    $Processed_Comp.Size = New-Object System.Drawing.Size(60,20) 
-    $Processed_Comp.Text = "0"
-    $computerObjTab.Controls.Add($Processed_Comp) 
-
-    $Processed_Comp_Label.Location = New-Object System.Drawing.Size(100,350) 
-    $Processed_Comp_Label.Size = New-Object System.Drawing.Size(250,20) 
-    $Processed_Comp_Label.Text = "- Processed objects"
-    $computerObjTab.Controls.Add($Processed_Comp_Label) 
-
-
-    $Operation_Label_Comp.Location = New-Object System.Drawing.Size(10,380) 
-    $Operation_Label_Comp.Size = New-Object System.Drawing.Size(250,20) 
-    $Operation_Label_Comp.Text = "Select the desired operation"
-    $computerObjTab.Controls.Add($Operation_Label_Comp) 
-
-    $disableObject_Comp.Location = New-Object System.Drawing.Size(10,400)
-    $disableObject_Comp.Text = "Disable Objects"
-    $disableObject_Comp.Checked = $true
-    $computerObjTab.Controls.Add($disableObject_Comp)
-
-    $deleteObject_Comp.Location = New-Object System.Drawing.Size(160,400) 
-    $deleteObject_Comp.Text = "Delete Objects"
-    $computerObjTab.Controls.Add($deleteObject_Comp)
-
 }
 
 # End Build .Net Objects Functions
@@ -1237,6 +1274,9 @@ function Perform_Operation_Comp()
     {
         Write-Host "Processing 'Delete' objects"
     }
+    if($null -ne $script:creds){
+        $myCim = New-CimSession -Credential $script:creds -ComputerName $server.Text
+    }
     $counter = 0
     try{
         foreach ($child in $array_Comp.Values ) 
@@ -1267,10 +1307,24 @@ function Perform_Operation_Comp()
                     if($CurrentCreds_Check.Checked){
                         #Remove-ADComputer -Identity $child.SamAccountName -Server $Server.Text -Confirm:$False
                         Remove-ADObject -Identity $x -Server $Server.Text -Recursive -Confirm:$False
+                        if($delete_A_Record_Comp.Checked){
+                            $z = Get-DnsServerResourceRecord -Name $child.SamAccountName.split("$")[0] -RRType "A" -ComputerName $Server.Text -ZoneName $DNS_Zone.Text -ErrorAction:SilentlyContinue
+                            if($z)
+                            {
+                                Remove-DnsServerResourceRecord -name $z.HostName -ComputerName $Server.Text -ZoneName $DNS_Zone.Text -RRType "A" -Force
+                            }
+                        }
                     }
                     else{
                         #Remove-ADComputer -Identity $child.SamAccountName -Credential $creds -Server $Server.Text -Confirm:$False
                         Remove-ADObject -Identity $x -Server $Server.Text -Recursive -Confirm:$False -Credential $creds
+                        if($delete_A_Record_Comp.Checked){
+                            $z = Get-DnsServerResourceRecord -Name $child.SamAccountName.split("$")[0] -RRType "A" -ComputerName $Server.Text -ZoneName $DNS_Zone.Text -CimSession $myCim -ErrorAction:SilentlyContinue
+                            if($z)
+                            {
+                                Remove-DnsServerResourceRecord -name $z.HostName -ComputerName $Server.Text -ZoneName $DNS_Zone.Text -RRType "A" -Force -CimSession $myCim
+                            }
+                        }
                     }
                 }
                 catch
